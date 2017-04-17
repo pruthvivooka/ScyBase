@@ -2,15 +2,15 @@ package com.scyllabase;
 
 public class SplitPage {
 
-	public int key;
-	public long pageNumber;
-	public boolean inserted;
-	public boolean shouldSplit = false;
+	private int key;
+	private int pageNumber;
+	private boolean inserted;
+	private boolean shouldSplit = false;
 
-	public SplitPage(int key, long pageNumber, boolean inserted) {
+	public SplitPage(int key, int pageNumber) {
 		this.key = key;
 		this.pageNumber = pageNumber;
-		this.inserted = inserted;
+		this.inserted = true;
 		this.shouldSplit = true;
 	}
 
@@ -19,4 +19,19 @@ public class SplitPage {
 		this.shouldSplit = false;
 	}
 
+	public int getKey() {
+		return key;
+	}
+
+	public int getPageNumber() {
+		return pageNumber;
+	}
+
+	public boolean isInserted() {
+		return inserted;
+	}
+
+	public boolean isShouldSplit() {
+		return shouldSplit;
+	}
 }

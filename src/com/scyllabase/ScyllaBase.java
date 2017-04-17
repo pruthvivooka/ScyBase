@@ -1,8 +1,6 @@
 package com.scyllabase;
 
-import javax.rmi.CORBA.Util;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.text.ParseException;
@@ -47,16 +45,12 @@ public class ScyllaBase {
 			long initialPagePointer = sBTablesTableFile.getFilePointer();
 			sBTablesTableFile.seek(initialPagePointer);
 			sBTablesTableFile.writeByte(0x0D);
-			long numCellPagesPointer = sBTablesTableFile.getFilePointer();
 			sBTablesTableFile.skipBytes(1);
-			long startCellContentAreaPointer = sBTablesTableFile.getFilePointer();
 			sBTablesTableFile.writeShort(512);
-			long rightSiblingPagePointer = sBTablesTableFile.getFilePointer();
-			sBTablesTableFile.skipBytes(4);
-			long cellLocationsStartPointer = sBTablesTableFile.getFilePointer();
+			sBTablesTableFile.write(-1);
 			long endOfHeader = sBTablesTableFile.getFilePointer();
 			//Tables table
-			HashMap<String, String> firstValues = new HashMap<String,String>(), secondValues = new HashMap<String,String>();
+			LinkedHashMap<String, String> firstValues = new LinkedHashMap<String,String>(), secondValues = new LinkedHashMap<String,String>();
 			firstValues.put("row_id", pkValue+"");
 			firstValues.put("table_name", "sb_tables");
 			firstValues.put("database_name", "catalog");
@@ -71,10 +65,18 @@ public class ScyllaBase {
 			secondValues.put("avg_length", "0");
 			recordsLength += sBTablesTable.getRecordLength(secondValues);
 			firstValues.put("avg_length", (recordsLength / 2) + "");
+			if(sBTablesTable.validateValues(firstValues)) {
+				logMessage("First values not valid");
+				return;
+			}
 			SplitPage splitPage = traverseAndInsert(sBTablesTableFile, Integer.parseInt(firstValues.get("row_id")), 0, firstValues, sBTablesTable);
+			if(sBTablesTable.validateValues(secondValues)) {
+				logMessage("Second values not valid");
+				return;
+			}
+			splitPage = traverseAndInsert(sBTablesTableFile, Integer.parseInt(firstValues.get("row_id")), 0, firstValues, sBTablesTable);
 			//Added randomly
 			//int recordSize = UtilityTools.sbTablesTable.getRecordLength();
-			long endOfPage = initialPagePointer + UtilityTools.pageSize;
 			sBTablesTableFile.close();
 		} catch (IOException | ParseException e) {
 			e.printStackTrace();
@@ -115,35 +117,31 @@ public class ScyllaBase {
 	}
 	*/
 
-	public static SplitPage traverseAndInsert(RandomAccessFile tableFile, int primaryKey, int pageNumber, HashMap<String, String> values, Table table) throws IOException, ParseException {
+	public static SplitPage traverseAndInsert(RandomAccessFile tableFile, int primaryKey, int pageNumber, LinkedHashMap<String, String> values, Table table) throws IOException, ParseException {
 		PageHeader pageHeader = new PageHeader(tableFile, pageNumber);
 		List<Short> cellLocations = pageHeader.getCellLocations();
 		if(pageHeader.getPageType() == 0x05) {
 			logMessage("Brood: 1");
-			int left = 0, right = pageHeader.getNumCells() - 1, mid;
-			DataCellInterior dataCellInterior = new DataCellInterior(tableFile, pageHeader.getPageStartFP() + cellLocations.get(right));
-			if(primaryKey > dataCellInterior.getKey()) {
+			short left = 0, right = (short) (pageHeader.getNumCells() - 1), mid;
+			DataCellPage dataCellPage = new DataCellPage(tableFile, pageHeader.getPageStartFP() + cellLocations.get(right));
+			if(primaryKey > dataCellPage.getKey()) {
 				SplitPage splitPage = traverseAndInsert(tableFile, primaryKey, pageHeader.getRightChiSibPointer(), values, table);
-				if(splitPage.shouldSplit) {
+				if(splitPage.isShouldSplit()) {
 					logMessage("Brood: 2");
-					return new SplitPage(true);
+					return checkAndSplitInteriorPage(tableFile, pageHeader, pageNumber, table, splitPage, (short) -1, 0);
 					//Check if space is available otherwise split.
 				}
-			} else if(primaryKey == dataCellInterior.getKey()) {
-				SplitPage splitPage = traverseAndInsert(tableFile, primaryKey, dataCellInterior.getLeftChildPointer(), values, table);
-				if(splitPage.shouldSplit) {
-					logMessage("Brood: 3");
-					//Check if space is available otherwise split.
-					return new SplitPage(true);
-				}
+			} else if(primaryKey == dataCellPage.getKey()) {
+				logMessage("Primary key must be unique");
+				return new SplitPage(false);
 			}
 			while(left != right) {
-				mid = ((left + right) / 2);
-				dataCellInterior = new DataCellInterior(tableFile, cellLocations.get(mid));
-				if(primaryKey < dataCellInterior.getKey())
+				mid = (short) ((left + right) / 2);
+				dataCellPage = new DataCellPage(tableFile, cellLocations.get(mid));
+				if(primaryKey < dataCellPage.getKey())
 					right = mid;
-				else if(primaryKey > dataCellInterior.getKey())
-					left = mid + 1;
+				else if(primaryKey > dataCellPage.getKey())
+					left = (short) (mid + 1);
 				else
 					break;
 			}
@@ -151,9 +149,10 @@ public class ScyllaBase {
 			if(left == right) {
 				SplitPage splitPage = traverseAndInsert(tableFile, primaryKey, pageHeader.getRightChiSibPointer(), values, table);
 				logMessage("Brood: 5");
-				if(splitPage.shouldSplit) {
+				if(splitPage.isShouldSplit()) {
 					//Check if space is available otherwise split.
-					return new SplitPage(true);
+					dataCellPage = new DataCellPage(tableFile, cellLocations.get(left));
+					return checkAndSplitInteriorPage(tableFile, pageHeader, pageNumber, table, splitPage, left, dataCellPage.getLeftChildPointer());
 				} else {
 					return splitPage;
 				}
@@ -169,54 +168,170 @@ public class ScyllaBase {
 			if(recordLength + 2 < space) {
 				logMessage("Brood: 7");
 				short locationOffset = (short) (pageHeader.getCellContentStartOffset() - recordLength);
-				short left = 0, right = (short) (pageHeader.getNumCells() - 1), mid;
-				DataCellInterior dataCellInterior = new DataCellInterior(tableFile, cellLocations.get(right));
-				if(dataCellInterior.getKey() < primaryKey) {
-					tableFile.seek(pageHeader.getHeaderEndOffset());
+				if(pageHeader.getNumCells() == 0) {
+					tableFile.seek(pageHeader.getPageStartFP() + pageHeader.getHeaderEndOffset());
 					tableFile.writeShort(locationOffset);
-				} else if(dataCellInterior.getKey() == primaryKey) {
-					SplitPage splitPage = new SplitPage(false);
-					logMessage("Primary key must be unique");
-					return splitPage;
-				}
-				while(left != right) {
-					mid = (short) ((left + right) / 2);
-					dataCellInterior = new DataCellInterior(tableFile, cellLocations.get(mid));
-					if(primaryKey < dataCellInterior.getKey())
-						right = mid;
-					else if(primaryKey > dataCellInterior.getKey())
-						left = (short) (mid + 1);
-					else
-						break;
-				}
-				if (left == right) {
-					long leftLocFP = pageHeader.getPageStartFP() + 8 + 2 * left;
-					tableFile.seek(leftLocFP);
-					byte[] bytes = new byte[2 * (pageHeader.getNumCells() - left)];
-					tableFile.read(bytes, 0, 2 * (left - pageHeader.getNumCells()));
-					tableFile.seek(leftLocFP);
-					tableFile.writeShort(locationOffset);
-					tableFile.write(bytes);
-					tableFile.seek(pageHeader.getPageStartFP() + 1);
-					tableFile.writeByte(pageHeader.getNumCells() + 1);
 				} else {
-					SplitPage splitPage = new SplitPage(false);
-					logMessage("Primary key must be unique");
-					return splitPage;
+					short left = 0, right = (short) (pageHeader.getNumCells() - 1), mid;
+					DataCellPage dataCellPage = new DataCellPage(tableFile, cellLocations.get(right), true);
+					if (dataCellPage.getKey() < primaryKey) {
+						tableFile.seek(pageHeader.getPageStartFP() + pageHeader.getHeaderEndOffset());
+						tableFile.writeShort(locationOffset);
+					} else if (dataCellPage.getKey() == primaryKey) {
+						SplitPage splitPage = new SplitPage(false);
+						logMessage("Primary key must be unique");
+						return splitPage;
+					}
+					while (left != right) {
+						mid = (short) ((left + right) / 2);
+						dataCellPage = new DataCellPage(tableFile, cellLocations.get(mid), true);
+						if (primaryKey < dataCellPage.getKey())
+							right = mid;
+						else if (primaryKey > dataCellPage.getKey())
+							left = (short) (mid + 1);
+						else
+							break;
+					}
+					if (left == right) {
+						long leftLocFP = pageHeader.getPageStartFP() + 8 + 2 * left;
+						tableFile.seek(leftLocFP);
+						byte[] bytes = new byte[2 * (pageHeader.getNumCells() - left)];
+						tableFile.read(bytes, 0, 2 * (left - pageHeader.getNumCells()));
+						tableFile.seek(leftLocFP);
+						tableFile.writeShort(locationOffset);
+						tableFile.write(bytes);
+					} else {
+						SplitPage splitPage = new SplitPage(false);
+						logMessage("Primary key must be unique");
+						return splitPage;
+					}
 				}
+				tableFile.seek(pageHeader.getPageStartFP() + 1);
+				tableFile.writeByte(pageHeader.getNumCells() + 1);
+				tableFile.writeShort(locationOffset);
 				long recordStart = pageHeader.getPageStartFP() + locationOffset;
 				table.writeRecord(tableFile, values, recordStart);
-				logMessage("Inserted!");
+				logMessage("Inserted at :" + locationOffset);
 				return new SplitPage(true);
 			} else {
+				//TODO: check page Number Condition
+				short addPosition = addAtPosition(tableFile, pageHeader, primaryKey);
+				if(addPosition == -1) {
+					SplitPage splitPage = new SplitPage(false);
+					logMessage("Primary key must be unique");
+					return splitPage;
+				}
+				int mid = pageHeader.getNumCells() / 2;
+				List<Record> leftPage = new ArrayList<>();
+				List<Record> rightPage = new ArrayList<>();
+				int midKey = new DataCellPage(tableFile, cellLocations.get(mid)).getKey();
+				for (int i = 0; i < mid; i++)
+					leftPage.add(new Record(tableFile, pageHeader.getPageStartFP() + cellLocations.get(i), table));
+				for (int i = mid; i < pageHeader.getNumCells(); i++)
+					rightPage.add(new Record(tableFile, pageHeader.getPageStartFP() + cellLocations.get(i), table));
+				long tableLength = tableFile.length();
+				int rightPageNumber = (int) (tableLength / UtilityTools.pageSize);
+				tableFile.setLength(tableLength + UtilityTools.pageSize);
+				buildNewPageFromRecords(tableFile, pageHeader.getPageStartFP(), leftPage, rightPageNumber);
+				buildNewPageFromRecords(tableFile, tableLength, rightPage, pageHeader.getRightChiSibPointer());
 				logMessage("Brood: 8");
-				return new SplitPage(true);
-				//Split
+				if(addPosition <= mid)
+					traverseAndInsert(tableFile, primaryKey, pageNumber, values, table);
+				else
+					traverseAndInsert(tableFile, primaryKey, rightPageNumber, values, table);
+				if(addPosition == mid)
+					midKey = primaryKey;
+				return new SplitPage(midKey, rightPageNumber);
 			}
 		} else {
 			logMessage("Incorrect Page type");
 			return new SplitPage(false);
 		}
+	}
+
+	private static SplitPage checkAndSplitInteriorPage(RandomAccessFile tableFile, PageHeader pageHeader, int pageNumber, Table table, SplitPage splitPage, short position, int oldLeftPointer) throws IOException {
+		short space = (short) (pageHeader.getCellContentStartOffset() - pageHeader.getHeaderEndOffset());
+		short recordLength = 8;
+		logMessage("Brood: In Check and split interior page");
+		if(recordLength + 2 < space) {
+			logMessage("Brood: has space");
+			short locationOffset = (short) (pageHeader.getCellContentStartOffset() - recordLength);
+			tableFile.seek(pageHeader.getPageStartFP() + locationOffset);
+			if(position == -1) {
+				tableFile.writeInt(pageHeader.getRightChiSibPointer());
+				tableFile.writeInt(splitPage.getKey());
+				tableFile.seek(pageHeader.getPageStartFP() + 4);
+				tableFile.writeInt(splitPage.getPageNumber());
+				tableFile.seek(pageHeader.getPageStartFP() + pageHeader.getHeaderEndOffset());
+				tableFile.writeShort(locationOffset);
+			} else {
+				tableFile.writeInt(oldLeftPointer);
+				tableFile.writeInt(splitPage.getKey());
+				tableFile.seek(pageHeader.getPageStartFP() + 8 + 2 * position);
+				short bytesLength = (short) (pageHeader.getHeaderEndOffset() - 8 - 2 * position);
+				byte[] bytes = new byte[bytesLength];
+				tableFile.read(bytes, 0, bytesLength);
+				tableFile.seek(pageHeader.getPageStartFP() + 8 + 2 * position);
+				tableFile.writeShort(locationOffset);
+				tableFile.write(bytes);
+				tableFile.seek(pageHeader.getPageStartFP() + 8 + 2 * position + 1);
+				tableFile.seek(pageHeader.getPageStartFP() + tableFile.readShort());
+				tableFile.writeInt(splitPage.getPageNumber());
+			}
+			tableFile.seek(pageHeader.getPageStartFP() + 1);
+			tableFile.writeByte(pageHeader.getNumCells() + 1);
+			tableFile.writeShort(locationOffset);
+			return new SplitPage(true);
+		} else {
+			//TODO: Split Interior Cell
+			return new SplitPage(true);
+		}
+	}
+
+	private static void buildNewPageFromRecords(RandomAccessFile file, long pageStartFP, List<Record> pageRecords, int rightPointer) throws IOException {
+		file.seek(pageStartFP);
+		file.writeByte(0x0D);
+		file.write(pageRecords.size());
+		file.skipBytes(2);
+		file.writeInt(rightPointer);
+		short lastLocation = (short) UtilityTools.pageSize;
+		byte[] bytes;
+		short locationOffset = (short) UtilityTools.pageSize;
+		int recordIndex = 0;
+		for (Record record : pageRecords) {
+			bytes = record.getBytes();
+			locationOffset = (short) (lastLocation - record.getBytes().length);
+			file.writeShort(locationOffset);
+			file.seek(pageStartFP + locationOffset);
+			file.write(bytes);
+			recordIndex++;
+			file.seek(pageStartFP + 8 + 2 * recordIndex);
+		}
+		file.seek(pageStartFP + 2);
+		file.writeShort(locationOffset);
+	}
+
+	private static short addAtPosition(RandomAccessFile file, PageHeader pageHeader, int primaryKey) throws IOException {
+		short left = 0, right = (short) (pageHeader.getNumCells() - 1), mid;
+		long pageStartPointer = pageHeader.getPageStartFP();
+		List<Short> cellLocations = pageHeader.getCellLocations();
+		DataCellPage dataCellPage = new DataCellPage(file, pageStartPointer + cellLocations.get(right), true);
+		if(primaryKey > dataCellPage.getKey())
+			return (short) (right + 1);
+		else if (primaryKey == dataCellPage.getKey())
+			return -1;
+
+		while(left != right) {
+			mid = (short) ((left + right) / 2);
+			dataCellPage = new DataCellPage(file, pageStartPointer + cellLocations.get(right), true);
+			if(primaryKey > dataCellPage.getKey())
+				left = (short) (mid + 1);
+			else if (primaryKey < dataCellPage.getKey())
+				right = mid;
+			else
+				return -1;
+		}
+		return left;
 	}
 
 	private static int traverseTillFound(RandomAccessFile tableFile, int primaryKey) throws IOException {

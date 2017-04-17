@@ -4,17 +4,18 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.text.ParseException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class Table {
 
 	private String tableName;
-	private HashMap<String, Column> columns;
+	private LinkedHashMap<String, Column> columns;
 	private int recordCount;
 	private int avgLength;
 
 
-	public Table(String tableName, HashMap<String, Column> columns) {
+	public Table(String tableName, LinkedHashMap<String, Column> columns) {
 		this.tableName = tableName;
 		this.columns = columns;
 	}
@@ -23,7 +24,7 @@ public class Table {
 		return tableName;
 	}
 
-	public HashMap<String, Column> getColumns() {
+	public LinkedHashMap<String, Column> getColumns() {
 		return columns;
 	}
 
@@ -43,7 +44,7 @@ public class Table {
 		this.recordCount = recordCount;
 	}
 
-	public boolean validateValues(HashMap<String, String> values) {
+	public boolean validateValues(LinkedHashMap<String, String> values) {
 		if(columns.entrySet().size() != values.entrySet().size())
 			return false;
 		for(Map.Entry<String, Column> entry : columns.entrySet()) {
@@ -55,22 +56,31 @@ public class Table {
 		return getRecordLength(values) <= UtilityTools.pageSize - 10;
 	}
 
-	public short getRecordLength(HashMap<String, String> values) {
-		short record_length = 0;
+	public short getRecordLength(LinkedHashMap<String, String> values) {
+		short recordLength = 6 + 1;
 		for(Map.Entry<String, Column> entry : columns.entrySet()) {
 			String key = entry.getKey();
 			Column column = entry.getValue();
-			record_length += column.getTypeLength(values.get(key)) + 1;
+			if(!column.isPk())
+				recordLength += column.getTypeLength(values.get(key)) + 1;
 		}
-		return record_length;
+		return recordLength;
 	}
 
-	public void writeRecord(RandomAccessFile file, HashMap<String, String> values, long position) throws IOException, ParseException {
+	public void writeRecord(RandomAccessFile file, LinkedHashMap<String, String> values, long position) throws IOException, ParseException {
 		file.seek(position);
+		file.writeShort(this.getRecordLength(values) - 6);
+		int pk = -1;
+		file.skipBytes(4);
 		for(Map.Entry<String, Column> entry : columns.entrySet()) {
 			String key = entry.getKey();
 			Column column = entry.getValue();
-			column.writeValue(file, values.get(key));
+			if(!column.isPk())
+				column.writeValue(file, values.get(key));
+			else
+				pk = Integer.parseInt(values.get(key));
 		}
+		file.seek(position + 2);
+		file.writeInt(pk);
 	}
 }

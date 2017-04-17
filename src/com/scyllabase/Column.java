@@ -17,13 +17,15 @@ class Column {
 	private boolean isNullable = false;
 	private int ordinalPosition;
 	private String tableName;
+	private boolean isPk = false;
 
-	Column(String name, String type, boolean isNullable, int ordinalPosition, String tableName) {
+	Column(String name, String type, boolean isNullable, int ordinalPosition, String tableName, boolean isPk) {
 		this.name = name;
 		this.type = type;
 		this.isNullable = isNullable;
 		this.ordinalPosition = ordinalPosition;
 		this.tableName = tableName;
+		this.isPk = isPk;
 	}
 
 	public String getName() {
@@ -44,6 +46,10 @@ class Column {
 
 	public String getTableName() {
 		return tableName;
+	}
+
+	public boolean isPk() {
+		return isPk;
 	}
 
 	boolean check(String value) {
@@ -135,8 +141,7 @@ class Column {
 			case "DATE":
 				return 8;
 			case "TEXT":
-				byte[] bytes = value.getBytes();
-				return (short) bytes.length;
+				return (short) value.length();
 			default:
 				return -1;
 		}
@@ -215,6 +220,12 @@ class Column {
 				file.writeLong(epochSeconds);
 				break;
 			case "TEXT":
+				if(value == null) {
+					file.write(0x0C);
+				} else {
+					file.write(0x0C + value.length());
+					file.writeBytes(value);
+				}
 				break;
 		}
 	}
