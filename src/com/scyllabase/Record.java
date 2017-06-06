@@ -2,17 +2,29 @@ package com.scyllabase;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.Map;
 
-public class Record {
-
+class Record {
 	private byte[] bytes = null;
-	public Record(RandomAccessFile file, long pointer, Table table) throws IOException {
+	Record(RandomAccessFile file, long pointer, boolean isLeaf) throws IOException {
 		file.seek(pointer);
-		file.read(bytes, 0, file.readShort() + 6);
+		int bytesLength = 8;
+		if(isLeaf) {
+			bytesLength = file.readShort() + 6;
+			file.seek(pointer);
+		}
+		bytes = new byte[bytesLength];
+		file.read(bytes, 0, bytesLength);
 	}
 
-	public byte[] getBytes() {
+	byte[] getBytes() {
 		return bytes;
+	}
+
+	int getRecordLength() {
+		return bytes.length;
+	}
+
+	Record(byte[] bytes) {
+		this.bytes = bytes;
 	}
 }

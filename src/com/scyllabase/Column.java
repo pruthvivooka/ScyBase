@@ -2,13 +2,14 @@ package com.scyllabase;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 
 class Column {
 
@@ -17,9 +18,11 @@ class Column {
 	private boolean isNullable = false;
 	private int ordinalPosition;
 	private String tableName;
+	private String dbName;
 	private boolean isPk = false;
 
-	Column(String name, String type, boolean isNullable, int ordinalPosition, String tableName, boolean isPk) {
+	Column(String name, String type, boolean isNullable, int ordinalPosition, String tableName, String dbName, boolean isPk) {
+		this.dbName = dbName;
 		this.name = name;
 		this.type = type;
 		this.isNullable = isNullable;
@@ -28,72 +31,82 @@ class Column {
 		this.isPk = isPk;
 	}
 
-	public String getName() {
+	String getName() {
 		return name;
 	}
 
-	public String getType() {
+	String getType() {
 		return type;
 	}
 
-	public boolean isNullable() {
+	boolean isNullable() {
 		return isNullable;
 	}
 
-	public int getOrdinalPosition() {
+	int getOrdinalPosition() {
 		return ordinalPosition;
 	}
 
-	public String getTableName() {
+	String getTableName() {
 		return tableName;
 	}
 
-	public boolean isPk() {
+	String getDbName() {
+		return dbName;
+	}
+
+	boolean isPk() {
 		return isPk;
 	}
 
 	boolean check(String value) {
 		if(value == null && !isNullable && !this.type.equals("TEXT"))
 			return false;
-		switch (this.type) {
+		switch (this.type.toUpperCase()) {
 			case "INT":
 				try {
-					Integer.parseInt(value);
+					if (value != null)
+						Integer.parseInt(value);
 				} catch (NumberFormatException e) {
 					return false;
 				}
 				break;
 			case "TINYINT":
 				try {
-					Byte.parseByte(value);
+					if (value != null)
+						Byte.parseByte(value);
 				} catch (NumberFormatException e) {
 					return false;
 				}
 				break;
 			case "SMALLINT":
 				try {
-					Short.parseShort(value);
+					if (value != null)
+						Short.parseShort(value);
 				} catch (NumberFormatException e) {
 					return false;
 				}
 				break;
 			case "BIGINT":
 				try {
-					Long.parseLong(value);
+					if (value != null)
+						Long.parseLong(value);
 				} catch (NumberFormatException e) {
 					return false;
 				}
 				break;
 			case "REAL":
 				try {
-					Float.parseFloat(value);
+					if (value != null)
+						Float.parseFloat(value);
 				} catch (NumberFormatException e) {
 					return false;
 				}
 				break;
 			case "DOUBLE":
 				try {
-					Double.parseDouble(value);
+					if (value != null)
+						Double.parseDouble(value);
 				} catch (NumberFormatException e) {
 					return false;
 				}
@@ -115,15 +128,15 @@ class Column {
 				}
 				break;
 			case "TEXT":
-				break;
+				return true;
 			default:
 				return false;
 		}
 		return true;
 	}
 
-	public short getTypeLength(String value) {
-		switch (this.type) {
+	short getTypeLength(String value) {
+		switch (this.type.toUpperCase()) {
 			case "INT":
 				return 4;
 			case "TINYINT":
@@ -141,14 +154,42 @@ class Column {
 			case "DATE":
 				return 8;
 			case "TEXT":
-				return (short) value.length();
+				if(value != null)
+					return (short) value.length();
+				else
+					return 0;
 			default:
 				return -1;
 		}
 	}
 
-	public void writeValue(RandomAccessFile file, String value) throws IOException, ParseException {
-		switch (this.type) {
+	boolean isDataTypeCorrect(byte value) {
+		switch (this.type.toUpperCase()) {
+			case "INT":
+				return value == 0x02 || value == 0x06;
+			case "TINYINT":
+				return value == 0x00 || value == 0x04;
+			case "SMALLINT":
+				return value == 0x01 || value == 0x05;
+			case "BIGINT":
+				return value == 0x03 || value == 0x07;
+			case "REAL":
+				return value == 0x02 || value == 0x08;
+			case "DOUBLE":
+				return value == 0x03 || value == 0x09;
+			case "DATETIME":
+				return value == 0x03 || value == 0x0A;
+			case "DATE":
+				return value == 0x03 || value == 0x0B;
+			case "TEXT":
+				return value >= 0x0C;
+			default:
+				return false;
+		}
+	}
+
+	void writeValue(RandomAccessFile file, String value) throws IOException, ParseException {
+		switch (this.type.toUpperCase()) {
 			case "INT":
 				if(value == null) {
 					file.writeByte(0x02);
@@ -204,29 +245,152 @@ class Column {
 				}
 				break;
 			case "DATETIME":
-				SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd_hh:mm:ss");
-				Date value_date = parser.parse(value);
-				Calendar calendar = Calendar.getInstance();
-				calendar.setTime(value_date);
-				long epochSeconds = calendar.getTimeInMillis() / 1000;
-				file.writeLong(epochSeconds);
+				if(value == null) {
+					file.writeByte(0x03);
+					file.writeDouble(0);
+				} else {
+					file.writeByte(0x0A);
+					SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd_hh:mm:ss");
+					Date value_date = parser.parse(value);
+					Calendar calendar = Calendar.getInstance();
+					calendar.setTime(value_date);
+					long epochSeconds = calendar.getTimeInMillis() / 1000;
+					file.writeLong(epochSeconds);
+				}
 				break;
 			case "DATE":
-				parser = new SimpleDateFormat("yyyy-MM-dd");
-				value_date = parser.parse(value);
-				calendar = Calendar.getInstance();
-				calendar.setTime(value_date);
-				epochSeconds = calendar.getTimeInMillis() / 1000;
-				file.writeLong(epochSeconds);
+				if(value == null) {
+					file.writeByte(0x03);
+					file.writeDouble(0);
+				} else {
+					file.writeByte(0x0B);
+					SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd");
+					Date value_date = parser.parse(value);
+					Calendar calendar = Calendar.getInstance();
+					calendar.setTime(value_date);
+					long epochSeconds = calendar.getTimeInMillis() / 1000;
+					System.out.println(epochSeconds);
+					file.writeLong(epochSeconds);
+				}
 				break;
 			case "TEXT":
 				if(value == null) {
 					file.write(0x0C);
 				} else {
 					file.write(0x0C + value.length());
-					file.writeBytes(value);
+					file.write(value.getBytes(StandardCharsets.US_ASCII));
 				}
 				break;
 		}
+	}
+
+	String getRecordValue(byte[] bytes) {
+		ByteBuffer bb = ByteBuffer.allocate(bytes.length);
+		bb.put(bytes);
+		switch (this.type.toUpperCase()) {
+			case "INT":
+				return bb.getInt(0) + "";
+			case "TINYINT":
+				return bb.get(0) + "";
+			case "SMALLINT":
+				return bb.getShort(0) + "";
+			case "BIGINT":
+				return bb.getLong(0) + "";
+			case "REAL":
+				return bb.getFloat(0) + "";
+			case "DOUBLE":
+				return bb.getDouble(0) + "";
+			case "DATETIME":
+				SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd_hh:mm:ss");
+				Calendar calendar = Calendar.getInstance();
+				calendar.setTimeInMillis(bb.getLong() * 1000);
+				return parser.format(calendar.getTime());
+			case "DATE":
+				parser = new SimpleDateFormat("yyyy-MM-dd");
+				calendar = Calendar.getInstance();
+				calendar.setTimeInMillis(bb.getLong() * 1000);
+				return parser.format(calendar.getTime());
+			case "TEXT":
+				return new String(bytes, StandardCharsets.US_ASCII);
+			default:
+				return null;
+		}
+	}
+
+	DataType getColumnValue(String value) throws ParseException {
+		switch (this.type.toUpperCase()) {
+			case "INT":
+				return new IntType(Integer.parseInt(value));
+			case "TINYINT":
+				return new TinyInt(Byte.parseByte(value));
+			case "SMALLINT":
+				return new SmallInt(Short.parseShort(value));
+			case "BIGINT":
+				return new BigInt(Long.parseLong(value));
+			case "REAL":
+				return new Real(Float.parseFloat(value));
+			case "DOUBLE":
+				return new DoubleType(Double.parseDouble(value));
+			case "DATETIME":
+				SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd_hh:mm:ss");
+				Date value_date = parser.parse(value);
+				Calendar calendar = Calendar.getInstance();
+				calendar.setTime(value_date);
+				long epochSeconds = calendar.getTimeInMillis() / 1000;
+				return new DateTimeType(epochSeconds);
+			case "DATE":
+				parser = new SimpleDateFormat("yyyy-MM-dd");
+				value_date = parser.parse(value);
+				calendar = Calendar.getInstance();
+				calendar.setTime(value_date);
+				epochSeconds = calendar.getTimeInMillis() / 1000;
+				return new DateType(epochSeconds);
+			case "TEXT":
+				return new TextType(value);
+			default:
+				return null;
+		}
+	}
+
+	String getFormat() {
+		switch (type.toUpperCase()) {
+			case "INT":
+				return "%-8s";
+			case "TINYINT":
+				return "%-3s";
+			case "SMALLINT":
+				return "%-5s";
+			case "BIGINT":
+				return "%-12s";
+			case "REAL":
+				return "%-8s";
+			case "DOUBLE":
+				return "%-12s";
+			case "DATETIME":
+				return "%-19s";
+			case "DATE":
+				return "%-10s";
+			case "TEXT":
+				return "%-30s";
+			default:
+				return null;
+		}
+	}
+
+	@Override
+	public String toString() {
+		return "Column{" +
+				"name='" + name + '\'' +
+				", type='" + type + '\'' +
+				", isNullable=" + isNullable +
+				", ordinalPosition=" + ordinalPosition +
+				", tableName='" + tableName + '\'' +
+				", isPk=" + isPk +
+				'}';
+	}
+
+	boolean checkCreation() {
+		List<String> dataType = Arrays.asList("INT", "TINYINT", "SMALLINT", "BIGINT", "REAL", "DOUBLE", "DATETIME", "DATE", "TEXT");
+		return dataType.contains(this.type.toUpperCase());
 	}
 }

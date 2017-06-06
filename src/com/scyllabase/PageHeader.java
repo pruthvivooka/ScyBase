@@ -2,60 +2,61 @@ package com.scyllabase;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
 import java.util.List;
 
-public class PageHeader {
+class PageHeader {
 
 	private long pageStartFP;
 	private byte pageType;
 	private byte numCells;
 	private short cellContentStartOffset;
 	private int rightChiSibPointer;
-	private List<Short> cellLocations;
+	private List<Short> cellLocations = new ArrayList<>();
 	private short headerEndOffset;
 
-	public PageHeader(RandomAccessFile file, int pageNumber) {
+	PageHeader(RandomAccessFile file, int pageNumber) {
 		this.pageStartFP = pageNumber * UtilityTools.pageSize;
 		try {
 			file.seek(this.pageStartFP);
 			this.pageType = file.readByte();
-
 			this.numCells = file.readByte();
 			this.cellContentStartOffset = file.readShort();
 			this.rightChiSibPointer = file.readInt();
 			for (int i = 0; i < this.numCells; i++)
 				this.cellLocations.add(file.readShort());
-			this.headerEndOffset = (short) (file.getFilePointer() - pageStartFP);
+			this.headerEndOffset = (short) (file.getFilePointer() - this.pageStartFP);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
-	public byte getPageType() {
+	byte getPageType() {
 		return this.pageType;
 	}
 
-	public short getCellContentStartOffset() {
+	short getCellContentStartOffset() {
 		return this.cellContentStartOffset;
 	}
 
-	public int getRightChiSibPointer() {
+	int getRightChiSibPointer() {
 		return this.rightChiSibPointer;
 	}
 
-	public List<Short> getCellLocations() {
+	List<Short> getCellLocations() {
 		return this.cellLocations;
 	}
 
-	public byte getNumCells() {
+	byte getNumCells() {
 		return numCells;
 	}
 
-	public long getPageStartFP() {
-		return pageStartFP;
+	long getPageStartFP() {
+		return this.pageStartFP;
 	}
 
-	public short getHeaderEndOffset() {
+	short getHeaderEndOffset() {
 		return headerEndOffset;
 	}
+
 }
