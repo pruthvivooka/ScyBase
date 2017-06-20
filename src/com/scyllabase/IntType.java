@@ -57,4 +57,12 @@ class IntType implements DataType<Integer> {
 		return bb.array();
 	}
 
+	@Override
+	public byte getDataTypeOfValue() {
+		if(value == null)
+			return 0x02;
+		else
+			return 0x06;
+	}
+
 }

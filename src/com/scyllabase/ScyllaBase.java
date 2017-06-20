@@ -16,19 +16,19 @@ import static com.scyllabase.UtilityTools.sbTablesTable;
 public class ScyllaBase {
 
 	private static boolean isExit = false;
-	static Scanner scanner = new Scanner(System.in).useDelimiter(";");
+	private static Scanner scanner = new Scanner(System.in).useDelimiter(";");
 	private static String currentDb = null;
 
 	public static void main(String[] args) {
 		splashScreen();
 		initializeDatabaseInfo();
+		/*
 		parseCreateDatabaseString("create database industry");
 		parseShowDatabasesQuery();
 		parseUseDatabaseString("use industry");
 		parseCreateString("create table parts (description TEXT, availability INT NOT NULL)");
 		parseSelectString("select * from parts");
 		parseInsertString("insert into parts(availability) values(0)");
-		/*
 		parseInsertString("insert into parts(availability) values(1)");
 		parseInsertString("insert into parts(availability) values(0)");
 		parseInsertString("insert into parts(availability) values(0)");
@@ -52,20 +52,20 @@ public class ScyllaBase {
 		parseInsertString("insert into parts(availability) values(0)");
 		parseInsertString("insert into parts(availability) values(4)");
 		parseInsertString("insert into parts(availability) values(0)");
-		*/
 		parseSelectString("select * from parts");
-		response("update parts set availability = 1 where availability = 0");
-		parseUpdateString("update parts set availability = 1 where availability = 0");
+		parseUpdateString("update parts set description = \"king of the hill\" where availability = 0");
+		parseUpdateString("update parts set description = \"king of the valley\" where availability = 6");
+		parseUpdateString("update parts set description = \"king of the north\" where availability = 4");
+		parseUpdateString("update parts set description = \"queen\" where availability = 2");
 		parseSelectString("select * from parts");
 		parseDeleteString("delete from parts where availability = 1");
 		parseSelectString("select * from parts");
 		parseDropString("drop table parts");
 		parseDropDatabaseString("drop database industry");
-
+		*/
 		//showTables();
 		//showColumns();
 
-		/*
 		String userCommand;
 		while(!isExit) {
 			System.out.print("scysql> ");
@@ -78,7 +78,6 @@ public class ScyllaBase {
 			parseUserCommand(userCommand);
 		}
 		System.out.println("Exiting...");
-		*/
 	}
 
 	private static void showTables() {
@@ -248,7 +247,7 @@ public class ScyllaBase {
 		file.seek(pageStartPointer + pageHeader.getCellLocations().get(searchKey));
 		int oldRecordLength = file.readShort() + 6;
 		file.skipBytes(4);
-		int newRecordLength = 6;
+		int newRecordLength = 7;
 		LinkedHashMap<String, Column> columns = table.getColumns();
 		Byte numColumns = file.readByte();
 		if(numColumns < columns.entrySet().size()) {
@@ -258,44 +257,50 @@ public class ScyllaBase {
 		for(Map.Entry<String, Column> entry : columns.entrySet()) {
 			String key = entry.getKey();
 			Column column = entry.getValue();
-			byte dataType = file.readByte();
+			logMessage("Column: " + column.getName() + " | " + column.getType());
 			if(!column.isPk()) {
+				byte dataType = file.readByte();
 				if (!column.isDataTypeCorrect(dataType)) {
-					logMessage(dataType + "");
-					logMessage(column.getName());
-					logMessage(column.getType());
+					logMessage(column.getName() + " :: " + column.getType() + " : " + dataType);
 					displayError("Datatype is not correct.");
 					return new SplitPage(-1);
 				}
-				if(column.getType().equals("TEXT") && values.get(column.getName()) != null)
+				if(column.getType().toUpperCase().equals("TEXT") && values.get(column.getName()) != null) {
 					newRecordLength += values.get(column.getName()).length() + 1;
-				else
+				} else
 					newRecordLength += UtilityTools.getNumberOfBytesFromTypebyte(dataType) + 1;
 				file.skipBytes(UtilityTools.getNumberOfBytesFromTypebyte(dataType));
 			}
 		}
 		ByteBuffer byteBuffer = ByteBuffer.allocate(newRecordLength);
+		logMessage("newRecordLength: " + newRecordLength);
 		byteBuffer.putShort((short) (newRecordLength - 6));
 		boolean needToDeleteAndUpdate = values.get(table.getPkColumn().getName()) != null;
 		file.seek(pageStartPointer + pageHeader.getCellLocations().get(searchKey) + 2);
 		int pkValue = file.readInt();
+		logMessage("Updating row_id: " + pkValue);
 		int newPkValue = needToDeleteAndUpdate ? Integer.parseInt(values.get(table.getPkColumn().getName())) : pkValue;
 		byteBuffer.putInt(newPkValue);
 		byteBuffer.put(file.readByte());
 		for(Map.Entry<String, Column> entry : columns.entrySet()) {
 			String key = entry.getKey();
 			Column column = entry.getValue();
-			byte dataType = file.readByte();
 			if(!column.isPk()) {
+				byte dataType = file.readByte();
 				if (!column.isDataTypeCorrect(dataType)) {
-					logMessage("Datatype is not correct.");
+					logMessage("log: " + dataType + " : " + column.getType());
+					displayError("Datatype is not correct.");
 					return new SplitPage(-1);
 				}
 				String valuesColumn = values.get(column.getName());
+				int dataTypeLength = UtilityTools.getNumberOfBytesFromTypebyte(dataType);
 				if(valuesColumn != null) {
+					byteBuffer.put(column.getColumnValue(valuesColumn).getDataTypeOfValue());
 					byteBuffer.put(column.getColumnValue(valuesColumn).getByteValue());
+					//Skip the bytes so that the columns are consistent.
+					file.skipBytes(dataTypeLength);
 				} else {
-					int dataTypeLength = UtilityTools.getNumberOfBytesFromTypebyte(dataType);
+					byteBuffer.put(dataType);
 					byte[] bytes = new byte[dataTypeLength];
 					file.read(bytes);
 					byteBuffer.put(bytes);
@@ -310,7 +315,7 @@ public class ScyllaBase {
 			//deleteRecord(file, searchKey, pageHeader);
 			//Insert the new record
 			SplitPage insertionSplitPage = traverseAndInsert(file, newPkValue, 0, null, table, newRecord);
-			return new SplitPage(newPkValue, insertionSplitPage.isInserted());
+			return new SplitPage(insertionSplitPage.isInserted() ? newPkValue : -1, insertionSplitPage.isInserted());
 		} else {
 			if(newRecordLength == oldRecordLength) {
 				//If record length is the same just rewrite the record with the new one.
@@ -339,13 +344,24 @@ public class ScyllaBase {
 				int availableSpace = pageHeader.getCellContentStartOffset() - pageHeader.getHeaderEndOffset();
 				if(newRecordLength - oldRecordLength <= availableSpace) {
 					//space is available.
-					byte[] tempBytes = new byte[pageHeader.getCellLocations().get(searchKey) - pageHeader.getCellContentStartOffset()];
+					Short searchKeyCellLocation = pageHeader.getCellLocations().get(searchKey);
+					byte[] tempBytes = new byte[searchKeyCellLocation - pageHeader.getCellContentStartOffset()];
 					file.seek(pageStartPointer + pageHeader.getCellContentStartOffset());
 					file.read(tempBytes);
 					file.seek(pageStartPointer + pageHeader.getCellContentStartOffset() + oldRecordLength);
 					file.write(tempBytes);
+					//Update the new cell locations
+					int index = 0;
+					for (Short cellLocation : cellLocations) {
+						if(cellLocation < searchKeyCellLocation) {
+							file.seek(pageStartPointer + 8 + 2 * index);
+							file.writeShort(cellLocation + oldRecordLength);
+						}
+						index++;
+					}
 					file.seek(pageStartPointer + pageHeader.getCellContentStartOffset() + oldRecordLength - newRecordLength);
 					file.write(newRecord);
+					//Update the search key location
 					file.seek(pageStartPointer + 8 + 2 * searchKey);
 					file.writeShort(pageHeader.getCellContentStartOffset() + oldRecordLength - newRecordLength);
 					file.seek(pageStartPointer + 2);
@@ -357,7 +373,7 @@ public class ScyllaBase {
 					//deleteRecord(file, searchKey, pageHeader);
 					traverseAndDelete(file, 0, table, new Condition(table.getPkColumn(), "=", new IntType(pkValue)));
 					SplitPage insertionSplitPage = traverseAndInsert(file, newPkValue, 0, null, table, newRecord);
-					return new SplitPage(newPkValue, insertionSplitPage.isInserted());
+					return new SplitPage(insertionSplitPage.isInserted() ? newPkValue : -1, insertionSplitPage.isInserted());
 				}
 			}
 		}
@@ -417,6 +433,7 @@ public class ScyllaBase {
 					integrityViolated = subUpdateResult.isIntegrityViolated();
 					lastUpdatedPk = subUpdateResult.getLastUpdatedPk();
 					pageHeader = new PageHeader(file, pageNumber);
+					cellLocations = pageHeader.getCellLocations();
 				}
 				updateResult.setIntegrityViolated(integrityViolated);
 			} else {
@@ -442,6 +459,7 @@ public class ScyllaBase {
 					conditionFailed = subUpdateResult.isConditionFailed();
 					lastUpdatedPk = subUpdateResult.getLastUpdatedPk();
 					pageHeader = new PageHeader(file, pageNumber);
+					cellLocations = pageHeader.getCellLocations();
 				}
 				updateResult.setIntegrityViolated(integrityViolated);
 				updateResult.setConditionFailed(conditionFailed);
@@ -464,6 +482,7 @@ public class ScyllaBase {
 				integrityViolated = subUpdateResult.isIntegrityViolated();
 				lastUpdatedPk = subUpdateResult.getLastUpdatedPk();
 				pageHeader = new PageHeader(file, pageNumber);
+				cellLocations = pageHeader.getCellLocations();
 			}
 			updateResult.setIntegrityViolated(integrityViolated);
 		}
@@ -480,7 +499,7 @@ public class ScyllaBase {
 		if(lastUpdatedPk < leftDataCellPage.getKey())
 			return left;
 		else if(lastUpdatedPk == leftDataCellPage.getKey())
-			return left + 1;
+			return left + 1 < pageHeader.getNumCells() ? left + 1 : -1;
 		else if(lastUpdatedPk >= rightDataCellPage.getKey())
 			return -1;
 		while(left != right) {
@@ -491,7 +510,7 @@ public class ScyllaBase {
 			else if(lastUpdatedPk < midDataCellPage.getKey())
 				right = mid;
 			else
-				return mid + 1;
+				return mid + 1 < pageHeader.getNumCells() ? mid + 1 : -1;
 		}
 		return left;
 	}
@@ -514,6 +533,10 @@ public class ScyllaBase {
 				if(updateSplitPage.isInserted()) {
 					updateResult.keyChange(((IntType)condition.getValue()).getValue());
 					updateResult.keyInserted(updateSplitPage.getKey());
+				} else if(updateSplitPage.getKey() == -1) {
+					//If a new record could not be inserted cause of integrity violation, roll back to the original file.
+					logMessage("New record could not be inserted cause of integrity violation");
+					updateResult.setIntegrityViolated(true);
 				} else {
 					updateResult.setLastUpdatedPk(((IntType)condition.getValue()).getValue());
 				}
@@ -528,7 +551,7 @@ public class ScyllaBase {
 					} else if (pageHeader.getPageType() == 0x00) {
 						break;
 					}
-					UpdateNextResult updateNextResult = traverseAndUpdateOnLastUpdatedLeaf(file, lastUpdatedPk, lastUpdatedIndex, true, pageHeader, pageNumber, insertedPks, table, condition, values);
+					UpdateNextResult updateNextResult = traverseAndUpdateOnLastUpdatedLeaf(file, lastUpdatedPk, lastUpdatedIndex, true, pageHeader, pageNumber, insertedPksTemp, table, condition, values);
 					conditionFailed = updateNextResult.isConditionFailed();
 					integrityViolated = updateNextResult.isIntegrityViolated();
 					pageCompletelyUpdated = updateNextResult.getLastUpdatedIndex() == -1;
@@ -582,7 +605,7 @@ public class ScyllaBase {
 					} else if (pageHeader.getPageType() == 0x00) {
 						break;
 					}
-					UpdateNextResult updateNextResult = traverseAndUpdateOnLastUpdatedLeaf(file, lastUpdatedPk, lastUpdatedIndex, false, pageHeader, pageNumber, insertedPks, table, condition, values);
+					UpdateNextResult updateNextResult = traverseAndUpdateOnLastUpdatedLeaf(file, lastUpdatedPk, lastUpdatedIndex, false, pageHeader, pageNumber, insertedPksTemp, table, condition, values);
 					pageHeader = new PageHeader(file, pageNumber);
 					integrityViolated = updateNextResult.isIntegrityViolated();
 					pageCompletelyUpdated = updateNextResult.getLastUpdatedIndex() == -1;
@@ -615,7 +638,7 @@ public class ScyllaBase {
 					pageCompletelyUpdated = true;
 					break;
 				}
-				UpdateNextResult updateNextResult = traverseAndUpdateOnLastUpdatedLeaf(file, lastUpdatedPk, lastUpdatedIndex, true, pageHeader, pageNumber, insertedPks, table, condition, values);
+				UpdateNextResult updateNextResult = traverseAndUpdateOnLastUpdatedLeaf(file, lastUpdatedPk, lastUpdatedIndex, true, pageHeader, pageNumber, insertedPksTemp, table, condition, values);
 				pageHeader = new PageHeader(file, pageNumber);
 				integrityViolated = updateNextResult.isIntegrityViolated();
 				pageCompletelyUpdated = updateNextResult.getLastUpdatedIndex() == -1;
@@ -629,6 +652,7 @@ public class ScyllaBase {
 				}
 			}
 			if(pageChangedToInterior) {
+				logMessage("Page changed to interior");
 				UpdateResult updateResult1 = traverseAndUpdate(file, pageNumber, table, condition, values, -1, lastUpdatedPk, insertedPksTemp);
 				integrityViolated = updateResult1.isIntegrityViolated();
 				lastUpdatedPk = updateResult1.getLastUpdatedPk();
@@ -650,7 +674,7 @@ public class ScyllaBase {
 			//If last update index is -1 and last updated pk is -1, then check the condition
 			return updateOnIndexLeaf(file, 0, checkCondition, pageHeader, pageNumber, newlyInsertedPks, table, condition, values);
 		} else if(lastUpdatedIndex == -1) {
-			//get the next index.
+			//get the next index through last updated pk.
 			int nextIndex = getNextIndex(file, pageHeader, lastUpdatedPk);
 			if(nextIndex != -1 && nextIndex < pageHeader.getNumCells())
 				return updateOnIndexLeaf(file, nextIndex + 1, checkCondition, pageHeader, pageNumber, newlyInsertedPks, table, condition, values);
@@ -661,7 +685,7 @@ public class ScyllaBase {
 			if(currentInLastUpdatedIndex.getKey() == lastUpdatedPk && lastUpdatedIndex + 1 < pageHeader.getNumCells())
 				return updateOnIndexLeaf(file, lastUpdatedIndex + 1, checkCondition, pageHeader, pageNumber, newlyInsertedPks, table, condition, values);
 			else if(lastUpdatedPk == currentInLastUpdatedIndex.getKey())
-				return new UpdateNextResult(-1, -1);
+				return new UpdateNextResult(lastUpdatedPk, -1);
 			else if(currentInLastUpdatedIndex.getKey() > lastUpdatedPk)
 				return updateOnIndexLeaf(file, lastUpdatedIndex, checkCondition, pageHeader, pageNumber, newlyInsertedPks, table, condition, values);
 			else {
@@ -677,15 +701,18 @@ public class ScyllaBase {
 	}
 
 	private static short getNextIndex(RandomAccessFile file, PageHeader pageHeader, int lastUpdatedPk) throws IOException {
+
 		short left = 0, right = (short) (pageHeader.getNumCells() - 1), mid;
 		long pageStartPointer = pageHeader.getPageStartFP();
 		List<Short> cellLocations = pageHeader.getCellLocations();
-		DataCellPage dataCellPage = new DataCellPage(file, pageStartPointer + cellLocations.get(right), true);
-		if(lastUpdatedPk > dataCellPage.getKey())
+		DataCellPage rightDataCellPage = new DataCellPage(file, pageStartPointer + cellLocations.get(right), true);
+		DataCellPage leftDataCellPage = new DataCellPage(file, pageStartPointer + cellLocations.get(left), true);
+		if(lastUpdatedPk >= rightDataCellPage.getKey())
 			return -1;
-		else if (lastUpdatedPk == dataCellPage.getKey())
-			return (short) (right + 1);
+		else if (lastUpdatedPk < leftDataCellPage.getKey())
+			return left;
 
+		DataCellPage dataCellPage;
 		while(left != right) {
 			mid = (short) ((left + right) / 2);
 			dataCellPage = new DataCellPage(file, pageStartPointer + cellLocations.get(mid), true);
@@ -696,7 +723,7 @@ public class ScyllaBase {
 			else
 				return (short) (mid + 1);
 		}
-		return -1;
+		return left;
 	}
 
 	private static UpdateNextResult updateOnIndexLeaf(RandomAccessFile file, int index, boolean checkCondition, PageHeader pageHeader, int pageNumber, List<Integer> newlyInsertedPks, Table table, Condition condition, LinkedHashMap<String, String> values) throws IOException, ParseException {
@@ -716,6 +743,7 @@ public class ScyllaBase {
 				if(!condition.result(new IntType(pk)))
 					return new UpdateNextResult(pk, index, false, true);
 			} else {
+				file.seek(pageStartPointer + pageHeader.getCellLocations().get(index));
 				file.skipBytes(6);
 				int numColumns = file.readByte();
 				if (columnIndex >= numColumns) {
@@ -757,9 +785,11 @@ public class ScyllaBase {
 		SplitPage splitPage = updateRecord(file, index, pageNumber, pageHeader, table, values);
 		if(splitPage.isInserted()) {
 			//If a new record is inserted send the newly inserted key along with the new LUI and LUPK.
+			logMessage("New record is inserted");
 			return new UpdateNextResult(pk, index, splitPage.getKey(), pk);
 		} else if(splitPage.getKey() == -1) {
 			//If a new record could not be inserted cause of integrity violation, roll back to the original file.
+			logMessage("New record could not be inserted cause of integrity violation");
 			return new UpdateNextResult(-1, -1, true);
 		} else {
 			//If a record is updated, just send the new LUI and LUPK.
@@ -2139,6 +2169,9 @@ public class ScyllaBase {
 			case "delete":
 				parseDeleteString(userCommand);
 				break;
+			case "update":
+				parseUpdateString(userCommand);
+				break;
 			case "insert":
 				parseInsertString(userCommand);
 				break;
@@ -2888,7 +2921,7 @@ public class ScyllaBase {
 		final String updateWithoutWhereRegex = "^update (\\S*) set (.+)$";
 		String[] stringSplit = userCommand.split(regex);
 		String whereString = null;
-		String updateStringWithoutWhere = null;
+		String updateStringWithoutWhere;
 		if(stringSplit.length == 2) {
 			updateStringWithoutWhere = stringSplit[0];
 			whereString = stringSplit[1];
@@ -2910,6 +2943,9 @@ public class ScyllaBase {
 	}
 
 	private static void checkAndExecuteUpdateString(String dbTableName, String setString, String condition) {
+		if(condition != null)
+			condition = condition.trim();
+		setString = setString.trim();
 		dbTableName = dbTableName.trim();
 		String[] dbTableNameSplit = dbTableName.split("\\.");
 		String tableName;
@@ -2952,38 +2988,33 @@ public class ScyllaBase {
 			Table table = new Table(dbName, tableName, columnHashMap);
 			RandomAccessFile tableFile = new RandomAccessFile(table.getFilePath(), "rw");
 			LinkedHashMap<String, String> values = new LinkedHashMap<>();
-			if(setString == null) {
-				displayError("Update command needs to update atleast one column using the set keyword.");
-				return;
-			} else {
-				final String commaRegex = ",(?=([^\"\\\\]*(\\\\.|\"([^\"\\\\]*\\\\.)*[^\"\\\\]*\"))*[^\"]*$)";
-				String[] valuesString = setString.split(commaRegex);
-				Pattern setPattern = Pattern.compile("^(\\S+) = (.*)$");
-				for (String valueString : valuesString) {
-					valueString = valueString.trim();
-					Matcher matcher = setPattern.matcher(valueString);
-					if(matcher.find()) {
-						if (matcher.groupCount() != 2) {
-							wrongSyntax();
-							return;
-						}
-						Column column = columnHashMap.get(matcher.group(1));
-						if(column == null) {
-							displayError("Set Column not found");
-							return;
-						}
-						DataType columnValue = column.getColumnValue(matcher.group(2));
-						if(columnValue instanceof TextType || columnValue instanceof DateTimeType || columnValue instanceof DateType) {
-							if(!UtilityTools.regexSatisfy((String) columnValue.getValue(), "^\".*\"$") && !UtilityTools.regexSatisfy((String) columnValue.getValue(), "^'.*'$")) {
-								displayError("String, dates, datetime columns must be string and must be in '' or \"\"");
-								return;
-							}
-						}
-						values.put(matcher.group(1).trim(), matcher.group(2).trim());
-					} else {
+			final String commaRegex = ",(?=([^\"\\\\]*(\\\\.|\"([^\"\\\\]*\\\\.)*[^\"\\\\]*\"))*[^\"]*$)";
+			String[] valuesString = setString.split(commaRegex);
+			Pattern setPattern = Pattern.compile("^(\\S+) = (.*)$");
+			for (String valueString : valuesString) {
+				valueString = valueString.trim();
+				Matcher matcher = setPattern.matcher(valueString);
+				if(matcher.find()) {
+					if (matcher.groupCount() != 2) {
 						wrongSyntax();
 						return;
 					}
+					Column column = columnHashMap.get(matcher.group(1));
+					if(column == null) {
+						displayError("Set Column not found");
+						return;
+					}
+					DataType columnValue = column.getColumnValue(matcher.group(2));
+					if(columnValue instanceof TextType || columnValue instanceof DateTimeType || columnValue instanceof DateType) {
+						if(!UtilityTools.regexSatisfy((String) columnValue.getValue(), "^\".*\"$") && !UtilityTools.regexSatisfy((String) columnValue.getValue(), "^'.*'$")) {
+							displayError("String, dates, datetime columns must be string and must be in '' or \"\"");
+							return;
+						}
+					}
+					values.put(matcher.group(1).trim(), matcher.group(2).trim().replaceAll("^\"|\"$", "").replaceAll("^'|'$", ""));
+				} else {
+					wrongSyntax();
+					return;
 				}
 			}
 			Condition conditionObj = null;
@@ -3027,8 +3058,8 @@ public class ScyllaBase {
 					}
 				}
 			}
-			boolean updated = atomicTraverseAndUpdate(tableFile, table, conditionObj, values);
-			response(updated ? "Successfully updated" : "not updated successfully");
+			boolean integrityViolated = atomicTraverseAndUpdate(tableFile, table, conditionObj, values);
+			response(integrityViolated ? "Integrity violated. The command did not change the state of the database." : "Updated successfully");
 		} catch (IOException | ParseException e) {
 			e.printStackTrace();
 		}

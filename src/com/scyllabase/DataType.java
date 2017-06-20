@@ -11,4 +11,6 @@ interface DataType<ADT> {
 	boolean lesserEquals(Object rightValue);
 	boolean like(Object rightValue);
 	byte[] getByteValue();
+	byte getDataTypeOfValue();
+
 }

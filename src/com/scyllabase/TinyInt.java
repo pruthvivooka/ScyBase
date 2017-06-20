@@ -54,4 +54,12 @@ public class TinyInt implements DataType<Byte> {
 		bytes[0] = value;
 		return bytes;
 	}
+
+	@Override
+	public byte getDataTypeOfValue() {
+		if(value == null)
+			return 0x00;
+		else
+			return 0x04;
+	}
 }

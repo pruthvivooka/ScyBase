@@ -57,4 +57,12 @@ public class SmallInt implements DataType<Short> {
 		return bb.array();
 	}
 
+	@Override
+	public byte getDataTypeOfValue() {
+		if(value == null)
+			return 0x01;
+		else
+			return 0x05;
+	}
+
 }

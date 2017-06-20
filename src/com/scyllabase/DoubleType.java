@@ -58,4 +58,12 @@ public class DoubleType implements DataType<Double> {
 		return bb.array();
 	}
 
+	@Override
+	public byte getDataTypeOfValue() {
+		if(value == null)
+			return 0x03;
+		else
+			return 0x09;
+	}
+
 }

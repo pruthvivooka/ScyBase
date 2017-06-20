@@ -69,4 +69,12 @@ public class TextType implements DataType<String> {
 		return value.getBytes();
 	}
 
+	@Override
+	public byte getDataTypeOfValue() {
+		if(value == null)
+			return 0x0C;
+		else
+			return (byte) (0x0C + value.length());
+	}
+
 }

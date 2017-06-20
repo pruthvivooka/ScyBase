@@ -55,4 +55,12 @@ public class Real implements DataType<Float> {
 		bb.putFloat(this.value);
 		return bb.array();
 	}
+
+	@Override
+	public byte getDataTypeOfValue() {
+		if(value == null)
+			return 0x02;
+		else
+			return 0x08;
+	}
 }

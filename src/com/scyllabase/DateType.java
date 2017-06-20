@@ -57,4 +57,12 @@ public class DateType implements DataType<Long> {
 		return bb.array();
 	}
 
+	@Override
+	public byte getDataTypeOfValue() {
+		if(value == null)
+			return 0x03;
+		else
+			return 0x0B;
+	}
+
 }
