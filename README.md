@@ -5,9 +5,8 @@ hybrid between MySQL and SQLite. It operates entirely from the command line (no 
 
 Condition does not support conjunctions or disjunctions.
 Supported conditions are =, !=, >, >=, <, <=, like, is null, is not null.
-----------------------------
+
 Test queries
-----------------------------
 create database industry;
 use industry;
 create table parts (description TEXT, availability INT NOT NULL);
