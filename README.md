@@ -3,10 +3,10 @@
 The goal of this project is to implement a (very) rudimentary database engine that is loosely based on a
 hybrid between MySQL and SQLite. It operates entirely from the command line (no GUI).
 
-Condition does not support conjunctions or disjunctions.
-Supported conditions are =, !=, >, >=, <, <=, like, is null, is not null.
+Note: Conjunctions and disjunctions are not supported. The supported conditions are =, !=, >, >=, <, <=, like, is null, is not null.
 
-Test queries
+Test queries:
+---------------------------------------------------------------------
 create database industry;
 use industry;
 create table parts (description TEXT, availability INT NOT NULL);
