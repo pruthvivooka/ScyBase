@@ -1,4 +1,4 @@
-package com.scyllabase;
+package com.scyllabase.Commands;
 
 import java.util.ArrayList;
 import java.util.List;

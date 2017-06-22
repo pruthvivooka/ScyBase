@@ -5,7 +5,7 @@ import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.List;
 
-class PageHeader {
+public class PageHeader {
 
 	private long pageStartFP;
 	private byte pageType;
@@ -15,7 +15,7 @@ class PageHeader {
 	private List<Short> cellLocations = new ArrayList<>();
 	private short headerEndOffset;
 
-	PageHeader(RandomAccessFile file, int pageNumber) {
+	public PageHeader(RandomAccessFile file, int pageNumber) {
 		this.pageStartFP = pageNumber * UtilityTools.pageSize;
 		try {
 			file.seek(this.pageStartFP);
@@ -31,31 +31,31 @@ class PageHeader {
 		}
 	}
 
-	byte getPageType() {
+	public byte getPageType() {
 		return this.pageType;
 	}
 
-	short getCellContentStartOffset() {
+	public short getCellContentStartOffset() {
 		return this.cellContentStartOffset;
 	}
 
-	int getRightChiSibPointer() {
+	public int getRightChiSibPointer() {
 		return this.rightChiSibPointer;
 	}
 
-	List<Short> getCellLocations() {
+	public List<Short> getCellLocations() {
 		return this.cellLocations;
 	}
 
-	byte getNumCells() {
+	public byte getNumCells() {
 		return numCells;
 	}
 
-	long getPageStartFP() {
+	public long getPageStartFP() {
 		return this.pageStartFP;
 	}
 
-	short getHeaderEndOffset() {
+	public short getHeaderEndOffset() {
 		return headerEndOffset;
 	}
 

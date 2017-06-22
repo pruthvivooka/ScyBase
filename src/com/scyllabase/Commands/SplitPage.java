@@ -1,4 +1,4 @@
-package com.scyllabase;
+package com.scyllabase.Commands;
 
 public class SplitPage {
 

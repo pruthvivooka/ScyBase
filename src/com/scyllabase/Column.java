@@ -1,5 +1,7 @@
 package com.scyllabase;
 
+import com.scyllabase.DataType.*;
+
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -11,7 +13,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
-class Column {
+public class Column {
 
 	private String name;
 	private String type;
@@ -21,7 +23,7 @@ class Column {
 	private String dbName;
 	private boolean isPk = false;
 
-	Column(String name, String type, boolean isNullable, int ordinalPosition, String tableName, String dbName, boolean isPk) {
+	public Column(String name, String type, boolean isNullable, int ordinalPosition, String tableName, String dbName, boolean isPk) {
 		this.dbName = dbName;
 		this.name = name;
 		this.type = type;
@@ -31,35 +33,35 @@ class Column {
 		this.isPk = isPk;
 	}
 
-	String getName() {
+	public String getName() {
 		return name;
 	}
 
-	String getType() {
+	public String getType() {
 		return type;
 	}
 
-	boolean isNullable() {
+	public boolean isNullable() {
 		return isNullable;
 	}
 
-	int getOrdinalPosition() {
+	public int getOrdinalPosition() {
 		return ordinalPosition;
 	}
 
-	String getTableName() {
+	public String getTableName() {
 		return tableName;
 	}
 
-	String getDbName() {
+	public String getDbName() {
 		return dbName;
 	}
 
-	boolean isPk() {
+	public boolean isPk() {
 		return isPk;
 	}
 
-	boolean check(String value) {
+	public boolean check(String value) {
 		if(value == null && !isNullable && !this.type.equals("TEXT"))
 			return false;
 		switch (this.type.toUpperCase()) {
@@ -135,7 +137,7 @@ class Column {
 		return true;
 	}
 
-	short getTypeLength(String value) {
+	public short getTypeLength(String value) {
 		switch (this.type.toUpperCase()) {
 			case "INT":
 				return 4;
@@ -163,7 +165,7 @@ class Column {
 		}
 	}
 
-	boolean isDataTypeCorrect(byte value) {
+	public boolean isDataTypeCorrect(byte value) {
 		switch (this.type.toUpperCase()) {
 			case "INT":
 				return value == 0x02 || value == 0x06;
@@ -188,7 +190,7 @@ class Column {
 		}
 	}
 
-	void writeValue(RandomAccessFile file, String value) throws IOException, ParseException {
+	public void writeValue(RandomAccessFile file, String value) throws IOException, ParseException {
 		switch (this.type.toUpperCase()) {
 			case "INT":
 				if(value == null) {
@@ -284,7 +286,7 @@ class Column {
 		}
 	}
 
-	String getRecordValue(byte[] bytes) {
+	public String getRecordValue(byte[] bytes) {
 		ByteBuffer bb = ByteBuffer.allocate(bytes.length);
 		bb.put(bytes);
 		switch (this.type.toUpperCase()) {
@@ -317,7 +319,7 @@ class Column {
 		}
 	}
 
-	DataType getColumnValue(String value) throws ParseException {
+	public DataType getColumnValue(String value) throws ParseException {
 		switch (this.type.toUpperCase()) {
 			case "INT":
 				return new IntType(Integer.parseInt(value));
@@ -352,7 +354,7 @@ class Column {
 		}
 	}
 
-	String getFormat() {
+	public String getFormat() {
 		switch (type.toUpperCase()) {
 			case "INT":
 				return "%-8s";
@@ -389,7 +391,7 @@ class Column {
 				'}';
 	}
 
-	boolean checkCreation() {
+	public boolean checkCreation() {
 		List<String> dataType = Arrays.asList("INT", "TINYINT", "SMALLINT", "BIGINT", "REAL", "DOUBLE", "DATETIME", "DATE", "TEXT");
 		return dataType.contains(this.type.toUpperCase());
 	}

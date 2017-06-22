@@ -1,15 +1,17 @@
-package com.scyllabase;
+package com.scyllabase.DataType;
 
-public class TinyInt implements DataType<Byte> {
+import java.nio.ByteBuffer;
 
-	private Byte value;
+public class Real implements DataType<Float> {
 
-	TinyInt(Byte value) {
+	private Float value;
+
+	public Real(Float value) {
 		this.value = value;
 	}
 
 	@Override
-	public Byte getValue() {
+	public Float getValue() {
 		return this.value;
 	}
 
@@ -25,22 +27,22 @@ public class TinyInt implements DataType<Byte> {
 
 	@Override
 	public boolean greater(Object rightValue) {
-		return rightValue instanceof Byte && this.value > (Byte) rightValue;
+		return rightValue instanceof Float && this.value > (Float) rightValue;
 	}
 
 	@Override
 	public boolean greaterEquals(Object rightValue) {
-		return rightValue instanceof Byte && this.value >=(Byte)  rightValue;
+		return rightValue instanceof Float && this.value >= (Float) rightValue;
 	}
 
 	@Override
 	public boolean lesser(Object rightValue) {
-		return rightValue instanceof Byte && this.value < (Byte) rightValue;
+		return rightValue instanceof Float && this.value < (Float) rightValue;
 	}
 
 	@Override
 	public boolean lesserEquals(Object rightValue) {
-		return rightValue instanceof Byte && this.value <=(Byte)  rightValue;
+		return rightValue instanceof Float && this.value <= (Float) rightValue;
 	}
 
 	@Override
@@ -50,16 +52,16 @@ public class TinyInt implements DataType<Byte> {
 
 	@Override
 	public byte[] getByteValue() {
-		byte[] bytes = new byte[1];
-		bytes[0] = value;
-		return bytes;
+		ByteBuffer bb = ByteBuffer.allocate(4);
+		bb.putFloat(this.value);
+		return bb.array();
 	}
 
 	@Override
 	public byte getDataTypeOfValue() {
 		if(value == null)
-			return 0x00;
+			return 0x02;
 		else
-			return 0x04;
+			return 0x08;
 	}
 }

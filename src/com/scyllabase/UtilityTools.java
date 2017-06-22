@@ -4,9 +4,9 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-class UtilityTools {
+public class UtilityTools {
 
-	static long pageSize = 512;
+	public static long pageSize = 512;
 	static String version = "1.0";
 	static String copyright = "Â©2017 Pruthvi Vooka";
 	private static LinkedHashMap<String, Column> sbTablesColumns = new LinkedHashMap<>();
@@ -27,9 +27,10 @@ class UtilityTools {
 		sbColumnsColumns.put("is_pk", new Column("is_pk", "TEXT", false, 8, "sb_columns", "catalog", false));
 	}
 
-	static Table sbTablesTable = new Table("catalog", "sb_tables", sbTablesColumns);
-	static Table sbColumnsTable=  new Table("catalog", "sb_columns", sbColumnsColumns);
-	static List<LinkedHashMap<String, String>> getSbColumnsTableValues() {
+	public static Table sbTablesTable = new Table("catalog", "sb_tables", sbTablesColumns);
+	public static Table sbColumnsTable=  new Table("catalog", "sb_columns", sbColumnsColumns);
+
+	public static List<LinkedHashMap<String, String>> getSbColumnsTableValues() {
 		List<LinkedHashMap<String, String>> list = new ArrayList<>();
 		int pk = 1;
 		for(Map.Entry<String, Column> entry : sbTablesColumns.entrySet()) {
@@ -59,7 +60,7 @@ class UtilityTools {
 		return list;
 	}
 
-	static LinkedHashMap<String, String> getColumnsTableRow(Column column, int pk) {
+	public static LinkedHashMap<String, String> getColumnsTableRow(Column column, int pk) {
 		LinkedHashMap<String, String> hashMap = new LinkedHashMap<>();
 		hashMap.put("row_id", pk+"");
 		hashMap.put("table_name", column.getTableName());
@@ -72,17 +73,17 @@ class UtilityTools {
 		return hashMap;
 	}
 
-	static String applyRegexSubstitution(String string, String regex, String sub) {
+	public static String applyRegexSubstitution(String string, String regex, String sub) {
 		Pattern pattern = Pattern.compile(regex);
 		Matcher matcher = pattern.matcher(string);
 		return matcher.replaceAll(sub);
 	}
 
-	static boolean regexSatisfy(String string, String regex) {
+	public static boolean regexSatisfy(String string, String regex) {
 		return string.matches(regex);
 	}
 
-	static int getNumberOfBytesFromTypebyte(byte type) {
+	public static int getNumberOfBytesFromTypebyte(byte type) {
 		switch (type) {
 			case 0x00:
 				return 1;
@@ -116,7 +117,7 @@ class UtilityTools {
 		}
 	}
 
-	static boolean valueNull(byte type) {
+	public static boolean valueNull(byte type) {
 		return type == 0x00 || type == 0x01 || type == 0x02 || type == 0x03;
 	}
 }

@@ -210,7 +210,7 @@ public class Table {
 		return new Record(byteBuffer.array());
 	}
 
-	Column getPkColumn() {
+	public Column getPkColumn() {
 		if(this.pkColumn != null)
 			return this.pkColumn;
 		for(Map.Entry<String, Column> entry : columns.entrySet()) {
@@ -223,7 +223,7 @@ public class Table {
 		return null;
 	}
 
-	boolean checkCreation() {
+	public boolean checkCreation() {
 		for(Map.Entry<String, Column> entry : columns.entrySet()) {
 			Column column = entry.getValue();
 			if(!column.checkCreation()) {

@@ -1,6 +1,6 @@
-package com.scyllabase;
+package com.scyllabase.DataType;
 
-interface DataType<ADT> {
+public interface DataType<ADT> {
 
 	ADT getValue();
 	boolean equal(Object rightValue);

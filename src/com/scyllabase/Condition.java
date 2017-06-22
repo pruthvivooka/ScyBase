@@ -1,16 +1,18 @@
 package com.scyllabase;
 
-class Condition {
+import com.scyllabase.DataType.DataType;
 
-	Column column;
-	String operation;
-	DataType value;
+public class Condition {
 
-	DataType getValue() {
+	public Column column;
+	public String operation;
+	public DataType value;
+
+	public DataType getValue() {
 		return this.value;
 	}
 
-	boolean result(DataType tableValue) {
+	public boolean result(DataType tableValue) {
 		switch (this.operation) {
 			case "=":
 				return tableValue.equal(this.value.getValue());
@@ -33,7 +35,7 @@ class Condition {
 		}
 	}
 
-	Condition(Column column, String operation, DataType value) {
+	public Condition(Column column, String operation, DataType value) {
 		this.column = column;
 		this.operation = operation;
 		this.value = value;

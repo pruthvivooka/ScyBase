@@ -2,25 +2,25 @@ package com.scyllabase;
 
 import java.nio.ByteBuffer;
 
-class InteriorCell {
+public class InteriorCell {
 
 	private int leftChildPointer;
 	private int key;
 
-	InteriorCell(int leftChildPointer, int key) {
+	public InteriorCell(int leftChildPointer, int key) {
 		this.leftChildPointer = leftChildPointer;
 		this.key = key;
 	}
 
-	int getLeftChildPointer() {
+	public int getLeftChildPointer() {
 		return leftChildPointer;
 	}
 
-	int getKey() {
+	public int getKey() {
 		return key;
 	}
 
-	Record getRecord() {
+	public Record getRecord() {
 		ByteBuffer byteBuffer = ByteBuffer.allocate(8);
 		byteBuffer.putInt(this.leftChildPointer);
 		byteBuffer.putInt(this.key);

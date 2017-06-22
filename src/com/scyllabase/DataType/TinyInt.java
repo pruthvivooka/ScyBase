@@ -1,17 +1,15 @@
-package com.scyllabase;
+package com.scyllabase.DataType;
 
-import java.nio.ByteBuffer;
+public class TinyInt implements DataType<Byte> {
 
-public class SmallInt implements DataType<Short> {
+	private Byte value;
 
-	private Short value;
-
-	SmallInt(Short value) {
+	public TinyInt(Byte value) {
 		this.value = value;
 	}
 
 	@Override
-	public Short getValue() {
+	public Byte getValue() {
 		return this.value;
 	}
 
@@ -27,22 +25,22 @@ public class SmallInt implements DataType<Short> {
 
 	@Override
 	public boolean greater(Object rightValue) {
-		return rightValue instanceof Short && this.value > (Short) rightValue;
+		return rightValue instanceof Byte && this.value > (Byte) rightValue;
 	}
 
 	@Override
 	public boolean greaterEquals(Object rightValue) {
-		return rightValue instanceof Short && this.value >= (Short)rightValue;
+		return rightValue instanceof Byte && this.value >=(Byte)  rightValue;
 	}
 
 	@Override
 	public boolean lesser(Object rightValue) {
-		return rightValue instanceof Short && this.value < (Short) rightValue;
+		return rightValue instanceof Byte && this.value < (Byte) rightValue;
 	}
 
 	@Override
 	public boolean lesserEquals(Object rightValue) {
-		return rightValue instanceof Short && this.value <= (Short) rightValue;
+		return rightValue instanceof Byte && this.value <=(Byte)  rightValue;
 	}
 
 	@Override
@@ -52,17 +50,16 @@ public class SmallInt implements DataType<Short> {
 
 	@Override
 	public byte[] getByteValue() {
-		ByteBuffer bb = ByteBuffer.allocate(2);
-		bb.putShort(this.value);
-		return bb.array();
+		byte[] bytes = new byte[1];
+		bytes[0] = value;
+		return bytes;
 	}
 
 	@Override
 	public byte getDataTypeOfValue() {
 		if(value == null)
-			return 0x01;
+			return 0x00;
 		else
-			return 0x05;
+			return 0x04;
 	}
-
 }

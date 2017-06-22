@@ -3,9 +3,9 @@ package com.scyllabase;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-class Record {
+public class Record {
 	private byte[] bytes = null;
-	Record(RandomAccessFile file, long pointer, boolean isLeaf) throws IOException {
+	public Record(RandomAccessFile file, long pointer, boolean isLeaf) throws IOException {
 		file.seek(pointer);
 		int bytesLength = 8;
 		if(isLeaf) {
@@ -16,15 +16,15 @@ class Record {
 		file.read(bytes, 0, bytesLength);
 	}
 
-	byte[] getBytes() {
+	public byte[] getBytes() {
 		return bytes;
 	}
 
-	int getRecordLength() {
+	public int getRecordLength() {
 		return bytes.length;
 	}
 
-	Record(byte[] bytes) {
+	public Record(byte[] bytes) {
 		this.bytes = bytes;
 	}
 }

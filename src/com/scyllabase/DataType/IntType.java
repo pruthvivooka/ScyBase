@@ -1,18 +1,17 @@
-package com.scyllabase;
-
+package com.scyllabase.DataType;
 
 import java.nio.ByteBuffer;
 
-public class DoubleType implements DataType<Double> {
+public class IntType implements DataType<Integer> {
 
-	private Double value;
+	private Integer value;
 
-	public DoubleType(Double value) {
+	public IntType(Integer value) {
 		this.value = value;
 	}
 
 	@Override
-	public Double getValue() {
+	public Integer getValue() {
 		return this.value;
 	}
 
@@ -28,22 +27,22 @@ public class DoubleType implements DataType<Double> {
 
 	@Override
 	public boolean greater(Object rightValue) {
-		return rightValue instanceof Double && this.value > (Double) rightValue;
+		return rightValue instanceof Integer && this.value > (Integer) rightValue;
 	}
 
 	@Override
 	public boolean greaterEquals(Object rightValue) {
-		return rightValue instanceof Double && this.value >= (Double) rightValue;
+		return rightValue instanceof Integer && this.value >= (Integer) rightValue;
 	}
 
 	@Override
 	public boolean lesser(Object rightValue) {
-		return rightValue instanceof Double && this.value < (Double) rightValue;
+		return rightValue instanceof Integer && this.value < (Integer) rightValue;
 	}
 
 	@Override
 	public boolean lesserEquals(Object rightValue) {
-		return rightValue instanceof Double && this.value <= (Double) rightValue;
+		return rightValue instanceof Integer && this.value <= (Integer) rightValue;
 	}
 
 	@Override
@@ -53,17 +52,17 @@ public class DoubleType implements DataType<Double> {
 
 	@Override
 	public byte[] getByteValue() {
-		ByteBuffer bb = ByteBuffer.allocate(8);
-		bb.putDouble(this.value);
+		ByteBuffer bb = ByteBuffer.allocate(4);
+		bb.putInt(this.value);
 		return bb.array();
 	}
 
 	@Override
 	public byte getDataTypeOfValue() {
 		if(value == null)
-			return 0x03;
+			return 0x02;
 		else
-			return 0x09;
+			return 0x06;
 	}
 
 }

@@ -1,16 +1,17 @@
-package com.scyllabase;
+package com.scyllabase.DataType;
 
 import java.nio.ByteBuffer;
 
-public class Real implements DataType<Float> {
-	private Float value;
+public class BigInt implements DataType<Long> {
 
-	public Real(Float value) {
+	private Long value;
+
+	public BigInt(Long value) {
 		this.value = value;
 	}
 
 	@Override
-	public Float getValue() {
+	public Long getValue() {
 		return this.value;
 	}
 
@@ -26,22 +27,22 @@ public class Real implements DataType<Float> {
 
 	@Override
 	public boolean greater(Object rightValue) {
-		return rightValue instanceof Float && this.value > (Float) rightValue;
+		return rightValue instanceof Long && this.value > (Long) rightValue;
 	}
 
 	@Override
 	public boolean greaterEquals(Object rightValue) {
-		return rightValue instanceof Float && this.value >= (Float) rightValue;
+		return rightValue instanceof Long && this.value >= (Long) rightValue;
 	}
 
 	@Override
 	public boolean lesser(Object rightValue) {
-		return rightValue instanceof Float && this.value < (Float) rightValue;
+		return rightValue instanceof Long && this.value < (Long) rightValue;
 	}
 
 	@Override
 	public boolean lesserEquals(Object rightValue) {
-		return rightValue instanceof Float && this.value <= (Float) rightValue;
+		return rightValue instanceof Long && this.value <= (Long) rightValue;
 	}
 
 	@Override
@@ -51,16 +52,17 @@ public class Real implements DataType<Float> {
 
 	@Override
 	public byte[] getByteValue() {
-		ByteBuffer bb = ByteBuffer.allocate(4);
-		bb.putFloat(this.value);
+		ByteBuffer bb = ByteBuffer.allocate(8);
+		bb.putLong(this.value);
 		return bb.array();
 	}
 
 	@Override
 	public byte getDataTypeOfValue() {
 		if(value == null)
-			return 0x02;
+			return 0x03;
 		else
-			return 0x08;
+			return 0x09;
 	}
+
 }

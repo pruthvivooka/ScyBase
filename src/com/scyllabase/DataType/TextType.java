@@ -1,4 +1,6 @@
-package com.scyllabase;
+package com.scyllabase.DataType;
+
+import com.scyllabase.UtilityTools;
 
 public class TextType implements DataType<String> {
 

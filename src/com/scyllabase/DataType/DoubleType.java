@@ -1,17 +1,18 @@
-package com.scyllabase;
+package com.scyllabase.DataType;
+
 
 import java.nio.ByteBuffer;
 
-public class DateType implements DataType<Long> {
+public class DoubleType implements DataType<Double> {
 
-	private Long value;
+	private Double value;
 
-	DateType(Long value) {
+	public DoubleType(Double value) {
 		this.value = value;
 	}
 
 	@Override
-	public Long getValue() {
+	public Double getValue() {
 		return this.value;
 	}
 
@@ -27,22 +28,22 @@ public class DateType implements DataType<Long> {
 
 	@Override
 	public boolean greater(Object rightValue) {
-		return rightValue instanceof Long && this.value > (Long) rightValue;
+		return rightValue instanceof Double && this.value > (Double) rightValue;
 	}
 
 	@Override
 	public boolean greaterEquals(Object rightValue) {
-		return rightValue instanceof Long && this.value >= (Long) rightValue;
+		return rightValue instanceof Double && this.value >= (Double) rightValue;
 	}
 
 	@Override
 	public boolean lesser(Object rightValue) {
-		return rightValue instanceof Long && this.value < (Long) rightValue;
+		return rightValue instanceof Double && this.value < (Double) rightValue;
 	}
 
 	@Override
 	public boolean lesserEquals(Object rightValue) {
-		return rightValue instanceof Long && this.value <= (Long) rightValue;
+		return rightValue instanceof Double && this.value <= (Double) rightValue;
 	}
 
 	@Override
@@ -53,7 +54,7 @@ public class DateType implements DataType<Long> {
 	@Override
 	public byte[] getByteValue() {
 		ByteBuffer bb = ByteBuffer.allocate(8);
-		bb.putLong(this.value);
+		bb.putDouble(this.value);
 		return bb.array();
 	}
 
@@ -62,7 +63,7 @@ public class DateType implements DataType<Long> {
 		if(value == null)
 			return 0x03;
 		else
-			return 0x0B;
+			return 0x09;
 	}
 
 }

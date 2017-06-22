@@ -1,12 +1,13 @@
-package com.scyllabase;
+package com.scyllabase.DataType;
+
 
 import java.nio.ByteBuffer;
 
-public class BigInt implements DataType<Long> {
+public class DateTimeType implements DataType<Long> {
 
 	private Long value;
 
-	BigInt(Long value) {
+	public DateTimeType(Long value) {
 		this.value = value;
 	}
 
@@ -32,17 +33,17 @@ public class BigInt implements DataType<Long> {
 
 	@Override
 	public boolean greaterEquals(Object rightValue) {
-		return rightValue instanceof Long && this.value >= (Long) rightValue;
+		return rightValue instanceof Long && this.value >=(Long) rightValue;
 	}
 
 	@Override
 	public boolean lesser(Object rightValue) {
-		return rightValue instanceof Long && this.value < (Long) rightValue;
+		return rightValue instanceof Long && this.value <(Long) rightValue;
 	}
 
 	@Override
 	public boolean lesserEquals(Object rightValue) {
-		return rightValue instanceof Long && this.value <= (Long) rightValue;
+		return rightValue instanceof Long && this.value <=(Long) rightValue;
 	}
 
 	@Override
@@ -62,7 +63,6 @@ public class BigInt implements DataType<Long> {
 		if(value == null)
 			return 0x03;
 		else
-			return 0x09;
+			return 0x0A;
 	}
-
 }
